@@ -3,7 +3,7 @@ package com.manya.epamtaskfragments
 import android.content.res.Configuration
 import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
-import android.support.v4.app.FragmentManager
+import android.support.v4.app.Fragment
 import android.view.View
 
 /**
@@ -22,90 +22,74 @@ class FragmentActivity : AppCompatActivity(), View.OnClickListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_fragment)
 
-        if (savedInstanceState != null){
-            clickQuantity = savedInstanceState.getSerializable(ARG_QUANTITY) as Int
+        clickQuantity = savedInstanceState?.getSerializable(ARG_QUANTITY) as Int? ?: 0
+
+        when (resources.configuration.orientation) {
+            PORTRAIT -> createPortrait()
+            LANDSCAPE -> createLandscape()
         }
+    }
 
-        val fragmentManager = supportFragmentManager
 
-        if (clickQuantity == 0) {
-            when (resources.configuration.orientation) {
-                PORTRAIT -> createPortrait(fragmentManager)
-                LANDSCAPE -> createLandscape(fragmentManager)
-            }
+    private fun createPortrait(){
+        val fragment = supportFragmentManager.findFragmentByTag(FRAGMENT_B_TAG) as? FragmentB
+        supportFragmentManager.popBackStack()
+        if (fragment != null && clickQuantity != 0){
+            fragment.arguments?.putSerializable(ARG_QUANTITY, clickQuantity)
+            supportFragmentManager.popBackStack()
+            supportFragmentManager.beginTransaction()
+                .replace(FRAME_PORTRAIT_CONTAINER, createBFragment(), FRAGMENT_B_TAG)
+                .addToBackStack(null)
+                .commit()
         } else {
-            replaceFragment(fragmentManager)
+            supportFragmentManager.beginTransaction()
+                .replace(FRAME_PORTRAIT_CONTAINER, FragmentA())
+                .commit()
         }
+
+    }
+
+    private fun createLandscape(){
+       supportFragmentManager.beginTransaction()
+           .add(FRAME_A_CONTAINER, FragmentA())
+           .commit()
+        supportFragmentManager.beginTransaction()
+            .replace(FRAME_B_CONTAINER, createBFragment(), FRAGMENT_B_TAG)
+            .addToBackStack(null)
+            .commit()
     }
 
 
-    private fun createPortrait(fragmentManager : FragmentManager){
-        var fragment = fragmentManager.findFragmentById(FRAME_PORTRAIT_CONTAINER)
-
-        if (fragment == null) {
-            fragment = FragmentA()
-            fragmentManager.beginTransaction()
-                .add(FRAME_PORTRAIT_CONTAINER, fragment)
-                .commit()
-        }
+    override fun onClick(p0: View?) {
+        clickQuantity++
+        replaceFragment()
     }
 
-    private fun createLandscape(fragmentManager : FragmentManager){
-        var fragmentA = fragmentManager.findFragmentById(FRAME_A_CONTAINER)
-        var fragmentB = fragmentManager.findFragmentById(FRAME_B_CONTAINER)
-
-        if (fragmentA == null || fragmentB == null) {
-            fragmentA = FragmentA()
-            fragmentB = createBFragment()
-            fragmentManager.beginTransaction()
-                .add(FRAME_A_CONTAINER, fragmentA)
-                .add(FRAME_B_CONTAINER, fragmentB)
-                .commit()
-        }
+    private fun replaceFragment(){
+        val fragmentHolder = if (resources.configuration.orientation == PORTRAIT) FRAME_PORTRAIT_CONTAINER
+        else  FRAME_B_CONTAINER
+        supportFragmentManager.popBackStack()
+        supportFragmentManager.beginTransaction()
+            .replace(fragmentHolder,createBFragment())
+            .addToBackStack(null)
+            .commit()
     }
 
     private fun createBFragment() : FragmentB{
         return FragmentB.newInstance(clickQuantity)
     }
 
-    override fun onClick(p0: View?) {
-        clickQuantity++
-
-        val fragmentManager = supportFragmentManager
-        replaceFragment(fragmentManager)
-    }
-
-    private fun replaceFragment(fragmentManager: FragmentManager){
-        when (resources.configuration.orientation) {
-            PORTRAIT ->
-                fragmentManager.beginTransaction()
-                    .replace(FRAME_PORTRAIT_CONTAINER, createBFragment())
-                    .addToBackStack(null)
-                    .commit()
-            LANDSCAPE ->
-                fragmentManager.beginTransaction()
-                    .replace(FRAME_B_CONTAINER, createBFragment())
-                    .commit()
-        }
-    }
-
     override fun onSaveInstanceState(outState: Bundle?) {
+        outState?.putSerializable(ARG_QUANTITY, clickQuantity)
         super.onSaveInstanceState(outState)
-        outState!!.putSerializable(ARG_QUANTITY, clickQuantity)
     }
 
-    override fun onRestoreInstanceState(savedInstanceState: Bundle?) {
-        super.onRestoreInstanceState(savedInstanceState)
-        clickQuantity = savedInstanceState!!.getSerializable(ARG_QUANTITY) as Int
-
-        val fragmentManager = supportFragmentManager
-
-        when(resources.configuration.orientation){
-            PORTRAIT -> createPortrait(fragmentManager)
-            LANDSCAPE -> createLandscape(fragmentManager)
+    override fun onBackPressed() {
+        super.onBackPressed()
+        if (resources.configuration.orientation == LANDSCAPE){
+            finish()
         }
     }
-
 
     companion object {
         private const val PORTRAIT = Configuration.ORIENTATION_PORTRAIT
@@ -113,6 +97,7 @@ class FragmentActivity : AppCompatActivity(), View.OnClickListener {
         private const val FRAME_PORTRAIT_CONTAINER = R.id.frameContainer
         private const val FRAME_A_CONTAINER = R.id.frameContainerA
         private const val FRAME_B_CONTAINER = R.id.frameContainerB
-        private const val ARG_QUANTITY = "QUANTITY"
+        private const val FRAGMENT_B_TAG = "FragmentB"
+        private const val ARG_QUANTITY = "quantity"
     }
 }
